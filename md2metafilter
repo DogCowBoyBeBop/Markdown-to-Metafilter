@@ -1,0 +1,125 @@
+#! /usr/bin/env bash
+## Makes markdown text suitable for MetaFilter post.
+## Expects supplied file to have "STARTCUT" and "STOPCUT" on their own lines.
+
+# TBD: better sed to smarten quotes - leading apostrophe as in ’til
+
+
+
+## FUNCTIONS
+showHelp (){
+  echo "Use: ${BASH_SOURCE[0]} [PATH/TO/FILE]"
+  echo "    FILE should have STARTCUT and STOPCUT on their own lines"
+  echo "    with markdown formatted text in between."
+  echo "Version: 0.5"
+}
+
+die() {
+  ## Print $1 to stderr and exit 1
+  printf 'FATAL: %s\n' "$1" >&2
+  exit 1
+}
+
+warn(){
+  ## Print $1 to std err and continue
+  printf 'WARN: %s\n' "$1" >&2
+}
+
+checkForReqs () {
+  # Check for Required Program(s)
+  local prog=""
+  local errs=""
+  for prog in "${@}"; do
+    # via https://stackoverflow.com/a/677212
+    command -v "${prog}" >/dev/null 2>&1 || errs+=$" ${prog}"
+  done
+  if [ "$errs" ] ; then
+    die "Can't find requirement(s):${errs}'"
+  fi
+}
+
+
+
+
+
+
+
+
+
+
+## CONSTANTS
+
+## Default Input File:
+inputFile="$HOME/Documents/MetaFilterDrafts.md"
+#inputFile="" # none
+
+## Default HTML Output location (folder):
+outDir=$( dirname -- "$inputFile" ) # same dir as the markdown file
+#outDir="$PWD" # current working dir
+#outDir="$HOME/.Trash" # inside the Trash (macOS)
+
+## Output Suffix
+outSfx=".mefi.txt" # .txt b/c we want to open it in a text editor
+
+## Markdown flavor
+## Note that most advanced features aren't useable on MetaFilter!
+mdFlavor="markdown" # Pandoc's Markdown
+#mdFlavor="commonmark_x" # CommonMark with many pandoc extensions
+#mdFlavor="commonmark" # CommonMark
+#mdFlavor="gfm" # Github-Flavored Markdown
+#mdFlavor="markdown_mmd" # MultiMarkdown
+#mdFlavor="markdown_phpextra" # PHP Markdown Extra
+#mdFlavor="markdown_strict" # Gruber's original Markdown
+
+## MAIN
+
+## Check for required programs
+checkForReqs pandoc sed awk dirname uname
+
+## Check if Help called
+if [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" = "--help" ]; then
+  showHelp; exit
+fi
+
+## Get OS name
+osName="$(uname -s)"
+
+## Check for supplied file or try default
+if [ ! -z "$1" ] && [ -r "${*}" ]; then # valid file supplied
+  inputFile="${*}"
+elif [ ! -r "$inputFile" ]; then # invalid default
+  die "Could not find a valid input file."
+fi
+inputFileBasename="${inputFile##*/}"
+
+## Output file name:
+outFile="${outDir}/${inputFileBasename}${outSfx}"
+
+
+## The important bit
+## awk: cut between STARTCUT and STOPCUT and pipe to 
+## sed: smarten double quotes and
+## smarten single quotes and pipe to
+## pandoc: convert md to HTML and send to output file
+awk '/^STARTCUT$/{flag=1;next}/^STOPCUT$/{flag=0}flag' "$inputFile" | \
+sed -E -e 's/(^|[[:space:]<([{])"/\1“/g' -e 's/"/”/g' \
+-e 's/(^|[[:space:]<([{])'\''/\1‘/g' -e 's/'\''/’/g' | \
+pandoc -f "$mdFlavor" -t html --wrap=preserve -o "$outFile"
+
+echo -e "Output file created at:\n${outFile}"
+
+## Edit output in place to add space between paras and delete para tags
+## (MeFi formatting)
+if [ "$osName" = "Darwin" ]; then
+  sed -i '' 's/<p>/\n/;s/<\/p>//' "$outFile" # Mac style
+else
+  sed -i 's/<p>/\n/;s/<\/p>//' "$outFile" # linux style
+fi
+
+## Open output file, if using a desktop
+if [ "$osName" = "Darwin" ]; then # macOS
+  open "$outFile" # default text editor (probably TextEdit)
+  #open -a /Applications/BBEdit.app/ "$outFile" # to specify application
+elif [ "$XDG_CURRENT_DESKTOP" ]; then # linux desktop
+  xdg-open "$outFile" # default text editor
+fi
