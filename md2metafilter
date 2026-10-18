@@ -8,7 +8,7 @@
 
 ## FUNCTIONS
 showHelp (){
-  echo "Use: ${BASH_SOURCE[0]} [PATH/TO/FILE]"
+  echo "Use: $(basename ${BASH_SOURCE[0]}) [PATH/TO/FILE]"
   echo "    FILE should have STARTCUT and STOPCUT on their own lines"
   echo "    with markdown formatted text in between."
   echo "Version: 0.5"
@@ -57,6 +57,7 @@ inputFile="$HOME/Documents/MetaFilterDrafts.md"
 outDir=$( dirname -- "$inputFile" ) # same dir as the markdown file
 #outDir="$PWD" # current working dir
 #outDir="$HOME/.Trash" # inside the Trash (macOS)
+#outDir=$(mktemp -d) # /tmp dir
 
 ## Output Suffix
 outSfx=".mefi.txt" # .txt b/c we want to open it in a text editor
@@ -74,7 +75,7 @@ mdFlavor="markdown" # Pandoc's Markdown
 ## MAIN
 
 ## Check for required programs
-checkForReqs pandoc sed awk dirname uname
+checkForReqs pandoc sed awk dirname basename uname
 
 ## Check if Help called
 if [ "$1" = "-h" ] || [ "$1" = "-?" ] || [ "$1" = "--help" ]; then
@@ -122,4 +123,5 @@ if [ "$osName" = "Darwin" ]; then # macOS
   #open -a /Applications/BBEdit.app/ "$outFile" # to specify application
 elif [ "$XDG_CURRENT_DESKTOP" ]; then # linux desktop
   xdg-open "$outFile" # default text editor
+  # There doesn't seem to be a way to specify a non-default application
 fi
